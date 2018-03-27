@@ -13,10 +13,10 @@ GET
 POST
 
 Also it supports these headers:
-Accept
-Content-type
-Content-length
-Date
-Host
-Referer
+Accept, 
+Content-type, 
+Content-length, 
+Date, 
+Host, 
+Referer, 
 Server
