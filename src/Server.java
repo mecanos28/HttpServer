@@ -13,12 +13,12 @@ public class Server {
     protected int port;
 
     Server (int port){this.port=port;} //Constructor
-    public void listen() throws IOException {
+    public void listen() throws IOException, InterruptedException {
         serverListener = new ServerSocket(port);
         Socket requester = null;
         while(true){
             requester = serverListener.accept(); //se acepta el nuevo cliente al servidor
-            Thread thread = new Thread( new requestHandler(requester) ); //cada request es un hilo nuevo
+            Thread thread = new Thread( new RequestHandler(requester) ); //cada request es un hilo nuevo
             thread.start();
         }
     }
