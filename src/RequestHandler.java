@@ -10,29 +10,28 @@ import java.util.List;
  * Created by feroj_000 on 27/3/2018.
  */
 public class RequestHandler implements Runnable{
-    protected Socket requester;
 
-    ArrayList<String> requestheaders = new ArrayList<String>();
-    ArrayList<String> responseheaders = new ArrayList<String>();
-    Method method;
-    String version;
-    String id;
-    int bodylength;
-    byte[] body;
-    DateFormat dateFormat;
-    Date date;
+    private Socket requester;
+    private ArrayList<String> requestHeaders;
+    private ArrayList<String> responseHeaders;
+    private DateFormat dateFormat;
+    private Date date;
+    private Method method;
+    private String version;
+    private String id;
+    private int bodyLength;
+    private byte[] body;
 
-
-
+    //Constructor
     public RequestHandler(Socket client) throws IOException, InterruptedException {
+        this.requester = client;
+        requestHeaders = new ArrayList<>();
+        responseHeaders = new ArrayList<>();
         dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
         date = new Date();
-        Date date = new Date();
         System.out.println(dateFormat.format(date));
-        this.requester = client;
-        readRequest();
-
-    } //Constructor
+        //readRequest();
+    }
 
     public enum ContentType {
         GIF("GIF"),
@@ -43,10 +42,11 @@ public class RequestHandler implements Runnable{
         PNG("PNG"),
         TXT("TXT");
 
-        private String tipo;
+        private String type;
 
+        //Constructor
         ContentType(String mimeType) {
-            this.tipo = mimeType;
+            this.type = mimeType;
         }
 
         public String getString() {
@@ -77,6 +77,7 @@ public class RequestHandler implements Runnable{
 
         private final String method;
 
+        //Constructor
         Method(String method) {
             this.method = method;
         }
@@ -90,20 +91,23 @@ public class RequestHandler implements Runnable{
 
         private final String status;
 
+        //Constructor
         Status(String status) {
             this.status = status;
         }
 
-        public String getString() {
+        public String getString()
+        {
             return status;
         }
     }
-
 
     @Override
     public void run() {
         try {
             readRequest();
+            createResponse();
+            requester.close();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
@@ -114,11 +118,13 @@ public class RequestHandler implements Runnable{
     public void readRequest() throws IOException, InterruptedException{
         BufferedReader reader = new BufferedReader(new InputStreamReader(requester.getInputStream()));
         String iter = reader.readLine();
+        System.out.println(iter);
         requestMethodReader(iter);
 
         while (!iter.equals("")) {
             iter = reader.readLine();
-            processHeader(iter);
+            requestHeaders.add(iter);
+            System.out.println(iter);
         }
     }
 
@@ -132,10 +138,6 @@ public class RequestHandler implements Runnable{
         version = line[2];
     }
 
-    private void processHeader(String line) {
-        requestheaders.add(line);
-    }
-
     public void createResponse() throws IOException {
         switch (method) {
             case HEAD:
@@ -147,46 +149,57 @@ public class RequestHandler implements Runnable{
                     fillHeaders(Status._200);
                     File file = new File("." + id);
                     if (file.exists()) {
-                        setContentType(id, responseheaders);
+                        setContentType(id, responseHeaders);
                         fillResponse(getBytes(file));
                     } else {
                         fillHeaders(Status._404);
-                        fillResponse(Status._404.toString());
+                        fillResponse(Status._404.getString());
+                        System.out.println("Error 404 No implementado");
                     }
                 } catch (Exception e) {
                 }
-
                 break;
             default:
                 fillHeaders(Status._501);
-                fillResponse(Status._501.toString());
+                fillResponse(Status._501.getString());
+                System.out.println("Error 501 No implementado");
         }
+        writeResponse();
     }
 
-    private void setContentType(String uri, List<String> list) {
+    private void writeResponse() throws IOException {
+        DataOutputStream output = new DataOutputStream(requester.getOutputStream());
+        for (String header : responseHeaders) {
+            output.writeBytes(header + "\r\n");
+        }
+        output.writeBytes("\r\n");
+        if (body != null) {
+            output.write(body);
+        }
+        output.writeBytes("\r\n");
+        System.out.println(output);
+        output.flush();
+    }
+
+    private void setContentType(String id, List<String> list) {
         try {
-            String ext = uri.substring(uri.indexOf(".") + 1);
+            String ext = id.substring(id.indexOf(".") + 1);
             list.add(ContentType.valueOf(ext.toUpperCase()).toString());
         } catch (Exception e) {
         }
     }
 
     private void fillHeaders(Status status) { //HACER ESTE FILL HEADERS CON TODO
+        responseHeaders.add("HTTP/1.0 " + status.toString());
+        responseHeaders.add("Connection: close");
+        responseHeaders.add("Server: ServidorDeAnaYFernando");
         if(status.getString().equals("200 OK")){
-            responseheaders.add("HTTP/1.0 " + status.toString());
-            responseheaders.add("Connection: close");
-            responseheaders.add("Server: ServidorDeAnaYFernando");
-            responseheaders.add("Content-length: "+ this.bodylength);
-            responseheaders.add("Date: "+ dateFormat.format(date));
+            responseHeaders.add("Content-length: "+ this.bodyLength);
+            responseHeaders.add("Date: "+ dateFormat.format(date));
             //Host
             //Referer
             //Server
-        }else{
-            responseheaders.add("HTTP/1.0 " + status.toString());
-            responseheaders.add("Connection: close");
-            responseheaders.add("Server: SimpleWebServer");
         }
-
     }
 
     private void fillResponse(String response) {
@@ -199,7 +212,7 @@ public class RequestHandler implements Runnable{
 
     private byte[] getBytes(File file) throws IOException {
         int length = (int) file.length();
-        this.bodylength=length;
+        this.bodyLength=length;
         byte[] array = new byte[length];
         InputStream in = new FileInputStream(file);
         int offset = 0;
@@ -210,13 +223,5 @@ public class RequestHandler implements Runnable{
         in.close();
         return array;
     }
-
-
-
-
-
-
-
-
 
 }

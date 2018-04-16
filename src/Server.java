@@ -9,15 +9,24 @@ import java.io.IOException;
 //TODO: Crear otra clase que sea como una consola en donde se inicie el servidor que tenga una instancia de esta clase
 
 public class Server {
-    protected ServerSocket serverListener;
-    protected int port;
 
-    Server (int port){this.port=port;} //Constructor
+    private ServerSocket serverListener;
+    private int port;
+
+    //Constructor
+    Server (int port){
+        this.port = port;
+    }
+
     public void listen() throws IOException, InterruptedException {
+
         serverListener = new ServerSocket(port);
+        System.out.println("Running server at: " + port);
+
         Socket requester = null;
+        System.out.println("Waiting for clients");
         while(true){
-            requester = serverListener.accept(); //se acepta el nuevo cliente al servidor
+            requester = serverListener.accept(); //acepta el nuevo cliente al servidor
             Thread thread = new Thread( new RequestHandler(requester) ); //cada request es un hilo nuevo
             thread.start();
         }
