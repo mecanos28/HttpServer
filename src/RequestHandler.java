@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.Socket;
+import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -21,16 +22,23 @@ public class RequestHandler implements Runnable{
     private String id;
     private int bodyLength;
     private byte[] body;
+    private String postData;
+    private String [] log;
+    private String referer;
 
     //Constructor
     public RequestHandler(Socket client) throws IOException, InterruptedException {
         this.requester = client;
         requestHeaders = new ArrayList<>();
         responseHeaders = new ArrayList<>();
+
         dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
         date = new Date();
         System.out.println(dateFormat.format(date));
-        //readRequest();
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        log = new String[6]; //0 Método, 1 Timestamp, 2 Servidor, 3 Refiere (De donde viene), 4 URL, 5 Datos (POST)
+        log[1]=timestamp.toString();
+        log[2]="ServidorDeAnaYFernando";
     }
 
     public enum ContentType {
@@ -75,9 +83,8 @@ public class RequestHandler implements Runnable{
         HEAD("HEAD"),
         POST("POST");
 
-        private final String method;
+        private String method;
 
-        //Constructor
         Method(String method) {
             this.method = method;
         }
@@ -89,9 +96,8 @@ public class RequestHandler implements Runnable{
         _406("406 Not Acceptable"),
         _501("501 Not Implemented");
 
-        private final String status;
+        private String status;
 
-        //Constructor
         Status(String status) {
             this.status = status;
         }
@@ -116,17 +122,64 @@ public class RequestHandler implements Runnable{
     }
 
     public void readRequest() throws IOException, InterruptedException{
-        BufferedReader reader = new BufferedReader(new InputStreamReader(requester.getInputStream()));
+        DataInputStream reader = new DataInputStream(new DataInputStream(requester.getInputStream()));
         String iter = reader.readLine();
         System.out.println(iter);
         requestMethodReader(iter);
+        int contentLength=0; //POST CONTENT LENGTH
 
         while (!iter.equals("")) {
             iter = reader.readLine();
             requestHeaders.add(iter);
             System.out.println(iter);
+
+            if(iter.toUpperCase().startsWith("REFERER:"))
+            {
+                try {
+                    referer=(iter.substring(8).trim());
+                    System.out.println("Found the HTTP referer: "+referer);
+                    log[3]=referer;
+                }
+                catch(Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            if(method.toString() == "POST"){
+                if(iter.toUpperCase().startsWith("CONTENT-LENGTH:"))
+                {
+                    try {
+                        contentLength=Integer.parseInt(iter.substring(15).trim());
+                        System.out.println("Found the HTTP Content-Length header: "+contentLength);
+                    }
+                    catch(Exception e) {
+                        e.printStackTrace();
+                        contentLength=0;
+                    }
+                }
+            }
+        }
+
+        //Read the HTTP POST content
+        if(contentLength>0)
+        {
+            int readed=0;
+            int c;
+            byte[] buffer=new byte[1024];
+
+            while((c=reader.read(buffer,0,1024))!=-1)
+            {
+                readed+=c;
+                System.out.println(new String(buffer,0,c));
+                if(readed>=contentLength) {
+                    postData = new String(buffer, 0, c);
+                    log[5]=postData;
+                    break;
+                }
+            }
         }
     }
+
 
     private void requestMethodReader(String str) {
         String[] line = str.split("\\s");
@@ -136,6 +189,7 @@ public class RequestHandler implements Runnable{
         }
         id = line[1];
         version = line[2];
+        log[0]=method.toString(); //Method to log
     }
 
     public void createResponse() throws IOException {
@@ -143,10 +197,11 @@ public class RequestHandler implements Runnable{
             case HEAD:
                 fillHeaders(Status._200);
                 break;
-            case POST:
+            case POST: //No es igual que el GET
             case GET:
                 try {
                     fillHeaders(Status._200);
+                    log[4]=id; //URL to log
                     File file = new File("." + id);
                     if (file.exists()) {
                         setContentType(id, responseHeaders);
@@ -185,12 +240,13 @@ public class RequestHandler implements Runnable{
         try {
             String ext = id.substring(id.indexOf(".") + 1);
             list.add(ContentType.valueOf(ext.toUpperCase()).toString());
+            System.out.println("CONTENT TYPE "+ ContentType.valueOf(ext.toUpperCase()).toString());
         } catch (Exception e) {
         }
     }
 
-    private void fillHeaders(Status status) { //HACER ESTE FILL HEADERS CON TODO
-        responseHeaders.add("HTTP/1.0 " + status.toString());
+    private void fillHeaders(Status status) {
+        responseHeaders.add("HTTP/1.0 " + status.getString());
         responseHeaders.add("Connection: close");
         responseHeaders.add("Server: ServidorDeAnaYFernando");
         if(status.getString().equals("200 OK")){
