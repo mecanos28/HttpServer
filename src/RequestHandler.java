@@ -159,8 +159,6 @@ public class RequestHandler implements Runnable{
                 }
             }
 
-
-
             if(method.toString().equals("POST")){
                 if(iter.toUpperCase().startsWith("CONTENT-LENGTH:"))
                 {
@@ -228,15 +226,14 @@ public class RequestHandler implements Runnable{
                     else {
                         setContentType(id, responseHeaders);
                         fillResponse(getBytes(file));
-                        if((acceptType.equals(idType)) && acceptType.equals("*")){
+                        if((!(acceptType.equals(idType))) && (! acceptType.equals("*"))){
                             fillHeaders(Status._406);
                             fillResponse(Status._406.getString());
                             System.out.println("Error 406 No Aceptable");
                         }
                         else fillHeaders(Status._200);
                     }
-                } catch (Exception e) {
-                }
+                } catch (Exception e) {}
                 break;
             default:
                 fillHeaders(Status._501);
@@ -248,8 +245,11 @@ public class RequestHandler implements Runnable{
 
     private void writeResponse() throws IOException {
         DataOutputStream output = new DataOutputStream(requester.getOutputStream());
+        int i=0;
         for (String header : responseHeaders) {
             output.writeBytes(header + "\r\n");
+            System.out.println(header);
+            i++;
         }
         output.writeBytes("\r\n");
         if (body != null) {
@@ -257,6 +257,7 @@ public class RequestHandler implements Runnable{
         }
         output.writeBytes("\r\n");
         output.flush();
+        System.out.println(i);
     }
 
     private void setContentType(String id, List<String> list) {
@@ -264,13 +265,13 @@ public class RequestHandler implements Runnable{
             String ext = id.substring(id.indexOf(".") + 1);
             acceptType = acceptType.substring(acceptType.indexOf("/") + 1);
             idType = id.substring(id.indexOf(".") + 1);
-            list.add(ContentType.valueOf(ext.toUpperCase()).toString());
         } catch (Exception e) {
         }
     }
 
     private void fillHeaders(Status status) {
         responseHeaders.add("HTTP/1.0 " + status.getString());
+        responseHeaders.add(ContentType.valueOf(idType.toUpperCase()).getString());
         responseHeaders.add("Connection: close");
         responseHeaders.add("Server: ServidorDeAnaYFernando");
         if(status.getString().equals("200 OK")){
@@ -289,7 +290,7 @@ public class RequestHandler implements Runnable{
 
     private byte[] getBytes(File file) throws IOException {
         int length = (int) file.length();
-        this.bodyLength=length;
+        //System.out.println("LENGTH: "+length);
         byte[] array = new byte[length];
         InputStream in = new FileInputStream(file);
         int offset = 0;
@@ -298,7 +299,6 @@ public class RequestHandler implements Runnable{
             offset += count;
         }
         in.close();
-        responseHeaders.add("Content-length: "+ this.bodyLength);
         return array;
     }
 
