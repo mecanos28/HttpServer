@@ -182,7 +182,7 @@ public class RequestHandler implements Runnable{
 
 
     private void requestMethodReader(String str) {
-        String[] line = str.split("\\s");
+        String[] line = str.split("\\s+");
         try {
             method = Method.valueOf(line[0]);
         } catch (Exception e) {
