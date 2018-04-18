@@ -262,7 +262,6 @@ public class RequestHandler implements Runnable{
 
     private void setContentType(String id, List<String> list) {
         try {
-            String ext = id.substring(id.indexOf(".") + 1);
             acceptType = acceptType.substring(acceptType.indexOf("/") + 1);
             idType = id.substring(id.indexOf(".") + 1);
         } catch (Exception e) {
