@@ -25,6 +25,8 @@ public class RequestHandler implements Runnable{
     private String postData;
     private String [] log;
     private String referer;
+    private String acceptType;
+    private String idType;
 
     //Constructor
     public RequestHandler(Socket client) throws IOException, InterruptedException {
@@ -34,11 +36,13 @@ public class RequestHandler implements Runnable{
 
         dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
         date = new Date();
-        System.out.println(dateFormat.format(date));
+        //System.out.println(dateFormat.format(date));
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         log = new String[6]; //0 Método, 1 Timestamp, 2 Servidor, 3 Refiere (De donde viene), 4 URL, 5 Datos (POST)
         log[1]=timestamp.toString();
         log[2]="ServidorDeAnaYFernando";
+        acceptType = ".";
+        idType = "..";
     }
 
     public enum ContentType {
@@ -81,7 +85,8 @@ public class RequestHandler implements Runnable{
     public enum Method {
         GET("GET"),
         HEAD("HEAD"),
-        POST("POST");
+        POST("POST"),
+        UNKNOWN("UNKNOWN");
 
         private String method;
 
@@ -113,6 +118,7 @@ public class RequestHandler implements Runnable{
         try {
             readRequest();
             createResponse();
+            printLog();
             requester.close();
         } catch (IOException e) {
             e.printStackTrace();
@@ -124,20 +130,17 @@ public class RequestHandler implements Runnable{
     public void readRequest() throws IOException, InterruptedException{
         DataInputStream reader = new DataInputStream(new DataInputStream(requester.getInputStream()));
         String iter = reader.readLine();
-        System.out.println(iter);
         requestMethodReader(iter);
         int contentLength=0; //POST CONTENT LENGTH
 
         while (!iter.equals("")) {
             iter = reader.readLine();
             requestHeaders.add(iter);
-            System.out.println(iter);
 
             if(iter.toUpperCase().startsWith("REFERER:"))
             {
                 try {
                     referer=(iter.substring(8).trim());
-                    System.out.println("Found the HTTP referer: "+referer);
                     log[3]=referer;
                 }
                 catch(Exception e) {
@@ -145,12 +148,24 @@ public class RequestHandler implements Runnable{
                 }
             }
 
-            if(method.toString() == "POST"){
+            if(iter.toUpperCase().startsWith("ACCEPT:"))
+            {
+                try {
+                    acceptType=(iter.substring(7).trim());
+                    log[3]=referer;
+                }
+                catch(Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+
+
+            if(method.toString().equals("POST")){
                 if(iter.toUpperCase().startsWith("CONTENT-LENGTH:"))
                 {
                     try {
                         contentLength=Integer.parseInt(iter.substring(15).trim());
-                        System.out.println("Found the HTTP Content-Length header: "+contentLength);
                     }
                     catch(Exception e) {
                         e.printStackTrace();
@@ -170,7 +185,6 @@ public class RequestHandler implements Runnable{
             while((c=reader.read(buffer,0,1024))!=-1)
             {
                 readed+=c;
-                System.out.println(new String(buffer,0,c));
                 if(readed>=contentLength) {
                     postData = new String(buffer, 0, c);
                     log[5]=postData;
@@ -185,11 +199,15 @@ public class RequestHandler implements Runnable{
         String[] line = str.split("\\s+");
         try {
             method = Method.valueOf(line[0]);
+            log[0]=method.toString();
         } catch (Exception e) {
+            log[0]=Method.UNKNOWN.toString();
+            method=Method.UNKNOWN;
         }
         id = line[1];
         version = line[2];
-        log[0]=method.toString(); //Method to log
+
+         //Method to log
     }
 
     public void createResponse() throws IOException {
@@ -200,16 +218,22 @@ public class RequestHandler implements Runnable{
             case POST: //No es igual que el GET
             case GET:
                 try {
-                    fillHeaders(Status._200);
                     log[4]=id; //URL to log
                     File file = new File("." + id);
-                    if (file.exists()) {
-                        setContentType(id, responseHeaders);
-                        fillResponse(getBytes(file));
-                    } else {
+                    if(!file.exists()){
                         fillHeaders(Status._404);
                         fillResponse(Status._404.getString());
-                        System.out.println("Error 404 No implementado");
+                        System.out.println("Error 404 No Encontrado");
+                    }
+                    else {
+                        setContentType(id, responseHeaders);
+                        fillResponse(getBytes(file));
+                        if((acceptType.equals(idType)) && acceptType.equals("*")){
+                            fillHeaders(Status._406);
+                            fillResponse(Status._406.getString());
+                            System.out.println("Error 406 No Aceptable");
+                        }
+                        else fillHeaders(Status._200);
                     }
                 } catch (Exception e) {
                 }
@@ -232,15 +256,15 @@ public class RequestHandler implements Runnable{
             output.write(body);
         }
         output.writeBytes("\r\n");
-        System.out.println(output);
         output.flush();
     }
 
     private void setContentType(String id, List<String> list) {
         try {
             String ext = id.substring(id.indexOf(".") + 1);
+            acceptType = acceptType.substring(acceptType.indexOf("/") + 1);
+            idType = id.substring(id.indexOf(".") + 1);
             list.add(ContentType.valueOf(ext.toUpperCase()).toString());
-            System.out.println("CONTENT TYPE "+ ContentType.valueOf(ext.toUpperCase()).toString());
         } catch (Exception e) {
         }
     }
@@ -250,11 +274,8 @@ public class RequestHandler implements Runnable{
         responseHeaders.add("Connection: close");
         responseHeaders.add("Server: ServidorDeAnaYFernando");
         if(status.getString().equals("200 OK")){
-            responseHeaders.add("Content-length: "+ this.bodyLength);
             responseHeaders.add("Date: "+ dateFormat.format(date));
-            //Host
-            //Referer
-            //Server
+            responseHeaders.add("Referer: "+ referer);
         }
     }
 
@@ -277,7 +298,15 @@ public class RequestHandler implements Runnable{
             offset += count;
         }
         in.close();
+        responseHeaders.add("Content-length: "+ this.bodyLength);
         return array;
+    }
+
+    private void printLog(){
+        System.out.println("\nMétodo: "+log[0]+ "\nTimestamp: "+log[1]+ "\nServidor: "+log[2]+ "\nRefiere: "+log[3]+ "\nURL: "+log[4]+ "\nDatos: "+log[5]+"\n");
+        System.out.println("\n-------------------------------------------------------------------------------------------------------------------------------\n");
+
+
     }
 
 }
