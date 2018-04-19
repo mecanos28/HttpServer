@@ -5,7 +5,6 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 /**
  * Created by feroj_000 on 27/3/2018.
@@ -52,7 +51,8 @@ public class RequestHandler implements Runnable{
         CSS("CSS"),
         JPEG("JPEG"),
         PNG("PNG"),
-        TXT("TXT");
+        TXT("TXT"),
+        PLAIN("PLAIN");
 
         private String type;
 
@@ -74,6 +74,7 @@ public class RequestHandler implements Runnable{
                     return "Content-Type: image/jpeg";
                 case PNG:
                     return "Content-Type: image/png";
+                case PLAIN:
                 case TXT:
                     return "Content-type: text/plain";
                 default:
@@ -224,9 +225,10 @@ public class RequestHandler implements Runnable{
                         System.out.println("Error 404 No Encontrado");
                     }
                     else {
-                        setContentType(id, responseHeaders);
+                        setContentType(id);
                         fillResponse(getBytes(file));
-                        if((!(acceptType.equals(idType))) && (! acceptType.equals("*"))){
+                        System.out.println(acceptType + " -- " + idType);
+                        if((!(checkTypes())) && (! acceptType.equals("*"))){
                             fillHeaders(Status._406);
                             fillResponse(Status._406.getString());
                             System.out.println("Error 406 No Aceptable");
@@ -241,6 +243,12 @@ public class RequestHandler implements Runnable{
                 System.out.println("Error 501 No implementado");
         }
         writeResponse();
+    }
+
+    private boolean checkTypes(){
+        String contentOfType=ContentType.valueOf(idType.toUpperCase()).getString();
+        String contentOfAccept=ContentType.valueOf(acceptType.toUpperCase()).getString();
+        return contentOfType.equals(contentOfAccept);
     }
 
     private void writeResponse() throws IOException {
@@ -260,7 +268,7 @@ public class RequestHandler implements Runnable{
         System.out.println(i);
     }
 
-    private void setContentType(String id, List<String> list) {
+    private void setContentType(String id) {
         try {
             acceptType = acceptType.substring(acceptType.indexOf("/") + 1);
             idType = id.substring(id.indexOf(".") + 1);
