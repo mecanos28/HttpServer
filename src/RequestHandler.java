@@ -278,7 +278,9 @@ public class RequestHandler implements Runnable{
 
     private void fillHeaders(Status status) {
         responseHeaders.add("HTTP/1.0 " + status.getString());
-        responseHeaders.add(ContentType.valueOf(idType.toUpperCase()).getString());
+        System.out.println("IDTYPE:"+idType);
+        if(!method.toString().equals("HEAD"))
+            responseHeaders.add(ContentType.valueOf(idType.toUpperCase()).getString());
         responseHeaders.add("Connection: close");
         responseHeaders.add("Server: ServidorDeAnaYFernando");
         if(status.getString().equals("200 OK")){
