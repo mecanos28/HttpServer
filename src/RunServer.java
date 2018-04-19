@@ -1,19 +1,19 @@
 import java.io.IOException;
 
+/**
+ * Created by Fernando Rojas y Ana Laura Vargas on 27/3/2018.
+ */
+
 public class RunServer {
-
-    public static int port = 8080;
-
-    public RunServer(){
-    }
 
     /**
      * Creates a server instance and runs its listener
-     * @param args
      * @throws InterruptedException
      */
     public static void main (String[] args) throws InterruptedException
     {
+        int port = 8080;
+
         try {
             Server myServer = new Server(port);
             myServer.listen();

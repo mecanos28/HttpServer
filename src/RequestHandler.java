@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.Date;
 
 /**
- * Created by feroj_000 on 27/3/2018.
+ * Created by Fernando Rojas y Ana Laura Vargas on 27/3/2018.
  */
 public class RequestHandler implements Runnable{
 
@@ -19,7 +19,6 @@ public class RequestHandler implements Runnable{
     private Method method;
     private String version;
     private String id;
-    private int bodyLength;
     private byte[] body;
     private String postData;
     private String [] log;
@@ -28,11 +27,10 @@ public class RequestHandler implements Runnable{
     private String idType;
 
     //Constructor
-    public RequestHandler(Socket client) throws IOException, InterruptedException {
+    public RequestHandler(Socket client) {
         this.requester = client;
         requestHeaders = new ArrayList<>();
         responseHeaders = new ArrayList<>();
-
         dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
         date = new Date();
         //System.out.println(dateFormat.format(date));
@@ -56,7 +54,6 @@ public class RequestHandler implements Runnable{
 
         private String type;
 
-        //Constructor
         ContentType(String mimeType) {
             this.type = mimeType;
         }
@@ -123,21 +120,18 @@ public class RequestHandler implements Runnable{
             requester.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
         }
     }
 
     /**
      * Reads the html request and initializes global variables that may be neaded
      * @throws IOException
-     * @throws InterruptedException
      */
-    public void readRequest() throws IOException, InterruptedException{
+    private void readRequest() throws IOException {
         DataInputStream reader = new DataInputStream(new DataInputStream(requester.getInputStream()));
         String iter = reader.readLine();
         requestMethodReader(iter); //Read the method
-        int contentLength=0; //POST CONTENT LENGTH
+        int contentLength = 0; //POST CONTENT LENGTH
 
         while (!iter.equals("")) { //While it can read the header
             iter = reader.readLine();
@@ -146,8 +140,8 @@ public class RequestHandler implements Runnable{
             if(iter.toUpperCase().startsWith("REFERER:")) //Fill referer
             {
                 try {
-                    referer=(iter.substring(8).trim());
-                    log[3]=referer;
+                    referer = (iter.substring(8).trim());
+                    log[3] = referer;
                 }
                 catch(Exception e) {
                     e.printStackTrace();
@@ -157,7 +151,7 @@ public class RequestHandler implements Runnable{
             if(iter.toUpperCase().startsWith("ACCEPT:")) //Fill accept
             {
                 try {
-                    acceptType=(iter.substring(7).trim());
+                    acceptType = (iter.substring(7).trim());
                 }
                 catch(Exception e) {
                     e.printStackTrace();
@@ -168,7 +162,7 @@ public class RequestHandler implements Runnable{
                 if(iter.toUpperCase().startsWith("CONTENT-LENGTH:"))
                 {
                     try {
-                        contentLength=Integer.parseInt(iter.substring(15).trim());
+                        contentLength = Integer.parseInt(iter.substring(15).trim());
                     }
                     catch(Exception e) {
                         e.printStackTrace();
@@ -178,18 +172,18 @@ public class RequestHandler implements Runnable{
             }
         }
         //Read the HTTP POST content
-        if(contentLength>0) //If it was a post, with the content length it can keep reading to get the varaibles
+        if(contentLength > 0) //If it was a post, with the content length it can keep reading to get the variables
         {
-            int readed=0;
+            int readed = 0;
             int readThisIteration;
-            byte[] buffer=new byte[1024];
+            byte[] buffer =new byte[1024];
 
-            while((readThisIteration=reader.read(buffer,0,1024))!=-1)
+            while((readThisIteration=reader.read(buffer,0,1024))!= -1)
             {
-                readed+=readThisIteration;
-                if(readed>=contentLength) {
+                readed += readThisIteration;
+                if(readed >= contentLength) {
                     postData = new String(buffer, 0, readThisIteration);
-                    log[5]=postData;
+                    log[5] = postData;
                     break;
                 }
             }
@@ -204,10 +198,10 @@ public class RequestHandler implements Runnable{
         String[] line = firstLine.split("\\s+"); //Split at the whitespace using Regex
         try {
             method = Method.valueOf(line[0]);
-            log[0]=method.toString(); //Method to log
+            log[0] = method.toString(); //Method to log
         } catch (Exception e) {
-            log[0]=Method.UNKNOWN.toString();
-            method=Method.UNKNOWN;
+            log[0] = Method.UNKNOWN.toString();
+            method = Method.UNKNOWN;
         }
         id = line[1];
         version = line[2];
@@ -217,7 +211,7 @@ public class RequestHandler implements Runnable{
      * Creates, constructs and sends the response depending on the method
      * @throws IOException
      */
-    public void createResponse() throws IOException {
+    private void createResponse() throws IOException {
         switch (method) {
             case HEAD:
                 writeResponseHeaders(Status._200); //Fills headers if it's just a head
@@ -225,29 +219,31 @@ public class RequestHandler implements Runnable{
             case POST: //POST and GET do the same thing in this program, POST variables are not treated
             case GET:
                 try {
-                    log[4]=id; //URL to log
+                    log[4] = id; //URL to log
                     File file = new File("." + id);
                     if(!file.exists()){ //If the file doesn't exist, 404 Error not found
                         writeResponseHeaders(Status._404);
                         setResponseBody(Status._404.getString());
-                        System.out.println("Error 404 No Encontrado");
+                        //System.out.println("Error 404 No Encontrado");
                     }
                     else { //If the file does exist, check if 406, otherwise write the response
                         checkTypes(id);
                         setResponseBody(getFileByteArray(file));
-                        if((!(checkTypes())) && (! acceptType.equals("*"))){ //Accept type must be the same as resource type
+                        if(!(acceptType.equals("*")) && !(acceptType.equals("/")) && !(checkTypes())){ //Accept type must be the same as resource type
                             writeResponseHeaders(Status._406);
                             setResponseBody(Status._406.getString());
-                            System.out.println("Error 406 No Aceptable");
+                            //System.out.println("Error 406 No Aceptable");
                         }
                         else writeResponseHeaders(Status._200);
                     }
-                } catch (Exception e) {}
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 break;
             default: //If method is not implemented (Not GET, POST or HEAD)
                 writeResponseHeaders(Status._501);
                 setResponseBody(Status._501.getString());
-                System.out.println("Error 501 No implementado");
+                //System.out.println("Error 501 No implementado");
         }
         writeResponse();
     }
@@ -257,8 +253,8 @@ public class RequestHandler implements Runnable{
      * @return true or false
      */
     private boolean checkTypes(){
-        String contentOfType=ContentType.valueOf(idType.toUpperCase()).getString();
-        String contentOfAccept=ContentType.valueOf(acceptType.toUpperCase()).getString();
+        String contentOfType = ContentType.valueOf(idType.toUpperCase()).getString();
+        String contentOfAccept = ContentType.valueOf(acceptType.toUpperCase()).getString();
         return contentOfType.equals(contentOfAccept);
     }
 
@@ -289,6 +285,7 @@ public class RequestHandler implements Runnable{
             acceptType = acceptType.substring(acceptType.indexOf("/") + 1);
             idType = id.substring(id.indexOf(".") + 1);
         } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -299,7 +296,9 @@ public class RequestHandler implements Runnable{
     private void writeResponseHeaders(Status status) {
         responseHeaders.add("HTTP/1.0 " + status.getString());
         if(method.toString().equals("GET") || method.toString().equals("POST")) //If it is a POST OR GET, THEN FILL CONTENT TYPE IN HEADER
-            responseHeaders.add(ContentType.valueOf(idType.toUpperCase()).getString());
+            if(!idType.equals("..")) {
+                responseHeaders.add(ContentType.valueOf(idType.toUpperCase()).getString());
+            }
         responseHeaders.add("Connection: close");
         responseHeaders.add("Server: ServidorDeAnaYFernando");
         if(status.getString().equals("200 OK")){
@@ -343,11 +342,13 @@ public class RequestHandler implements Runnable{
         return array;
     }
 
-    private void printLog(){
-        System.out.println("\nMétodo: "+log[0]+ "\nTimestamp: "+log[1]+ "\nServidor: "+log[2]+ "\nRefiere: "+log[3]+ "\nURL: "+log[4]+ "\nDatos: "+log[5]+"\n");
-        System.out.println("\n-------------------------------------------------------------------------------------------------------------------------------\n");
-
-
+    /**
+     * Prints log information
+     */
+    private void printLog() {
+        System.out.println("\n-------------------------------------------------------------------------------------------------------------------------------");
+        System.out.println("Método: " + log[0] + "\nTimestamp: " + log[1] + "\nServidor: " + log[2] + "\nRefiere: " + log[3] + "\nURL: " + log[4] + "\nDatos: " + log[5]);
+        System.out.println("-------------------------------------------------------------------------------------------------------------------------------\n");
     }
 
 }
