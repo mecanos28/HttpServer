@@ -7,6 +7,11 @@ public class RunServer {
     public RunServer(){
     }
 
+    /**
+     * Creates a server instance and runs its listener
+     * @param args
+     * @throws InterruptedException
+     */
     public static void main (String[] args) throws InterruptedException
     {
         try {

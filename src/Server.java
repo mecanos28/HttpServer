@@ -18,6 +18,11 @@ public class Server {
         this.port = port;
     }
 
+    /**
+     * Listens for requests to the socket and creates a thread that attends each one
+     * @throws IOException
+     * @throws InterruptedException
+     */
     public void listen() throws IOException, InterruptedException {
 
         serverListener = new ServerSocket(port);
